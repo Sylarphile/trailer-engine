@@ -87,6 +87,10 @@ def main():
                     "paths": {
                         "home": rf"{UNRELEASED_TRAILERS}",
                         "temp": rf"{TEMP_FOLDER}",
+                        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+                        "writethumbnail": True,
+                        "writesubtitles": True,
+                        "writeautomaticsub": True
                     },
                     "outtmpl": f"{title} - Trailer.%(ext)s",
                 }

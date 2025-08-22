@@ -1,7 +1,7 @@
 venv/
 __pycache__/
 config.py
-src/
-dst/
+released_trailers/
+unreleased_trailers/
 tmp/
 unreleased.json
