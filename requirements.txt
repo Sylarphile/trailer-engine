@@ -1,5 +1,3 @@
 Requests
 watchdog
-ffmpeg
-ffprobe
 yt-dlp
