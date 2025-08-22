@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+config.py
+src/
+dst/
+tmp/
+unreleased.json
