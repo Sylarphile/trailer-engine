@@ -25,8 +25,7 @@ def main():
         return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
     def move_trailer(path):
-        shutil.copy(path, os.path.join(RELEASED_TRAILERS, os.path.basename(path)))
-        os.remove(path)
+        shutil.move(path, os.path.join(RELEASED_TRAILERS, os.path.basename(path)))
         unreleased[get_key(path)]["released"] = True
         save_unreleased(unreleased)
 
