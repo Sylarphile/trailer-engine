@@ -158,14 +158,15 @@ def main():
             title = result["title"]
             movie_id = result["id"]
             year = result["release_date"][:4]
+            key = f"{title} ({year})"
 
             try:
-                if unreleased[f"{title} ({year})"]["movie_id"] == movie_id:
+                if unreleased[key]["movie_id"] == movie_id:
                     continue
             except Exception as e:
                 print("Movie not found. Attmepting to get trailer.")
 
-            unreleased[f"{title} ({year})"] = {"title": title, "movie_id": movie_id, "releases": get_release_dates(movie_id), "released": False}
+            unreleased[key] = {"title": title, "movie_id": movie_id, "releases": get_release_dates(movie_id), "released": False}
             save_unreleased(unreleased) 
             get_trailer(movie_id, title, year)
 
