@@ -2,6 +2,8 @@ The goal of this project is to download and determine which movie trailers corre
 
 API information here: https://developer.themoviedb.org/docs/getting-started
 
+requires ffmpeg.
+
 config.py format:
 
 ```
