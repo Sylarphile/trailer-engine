@@ -25,7 +25,8 @@ def main():
         return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
     def move_trailer(path):
-        shutil.move(path, os.path.join(RELEASED_TRAILERS, os.path.basename(path)))
+        shutil.copy(path, os.path.join(RELEASED_TRAILERS, os.path.basename(path)))
+        os.remove(path)
         unreleased[get_key(path)]["released"] = True
         save_unreleased(unreleased)
 
@@ -105,6 +106,7 @@ def main():
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
                     ytdl.download(f"https://www.youtube.com/watch?v={key}")
+            time.sleep(30)
 
     class TrailerHandler(FileSystemEventHandler):
         def on_created(self, event):
@@ -164,7 +166,7 @@ def main():
                 if unreleased[key]["movie_id"] == movie_id:
                     continue
             except Exception as e:
-                print("Movie not found. Attmepting to get trailer.")
+                print("Movie not in state file. Attempting to get trailer.")
 
             unreleased[key] = {"title": title, "movie_id": movie_id, "releases": get_release_dates(movie_id), "released": False}
             save_unreleased(unreleased) 
