@@ -160,7 +160,7 @@ def main():
             year = result["release_date"][:4]
 
             try:
-                if unreleased[title]["movie_id"] == movie_id:
+                if unreleased[f"{title} ({year})"]["movie_id"] == movie_id:
                     continue
             except Exception as e:
                 print("Movie not found. Attmepting to get trailer.")
