@@ -26,14 +26,21 @@ def main():
 
     def move_trailer(path):
         shutil.move(path, os.path.join(RELEASED_TRAILERS, os.path.basename(path)))
-        unreleased[get_title(path)]["released"] = True
+        unreleased[get_key(path)]["released"] = True
         save_unreleased(unreleased)
 
-    def get_title(path):
-        
+    def get_key(path):
+            #Assumes a file format of: "Title (year) - Trailer.ext"
         filename = os.path.basename(path)
         title = os.path.splitext(filename)[0]
         title = title[:-10]
+        return title    
+    
+    def get_title(path):
+            #Assumes a file format of: "Title (year) - Trailer.ext"
+        filename = os.path.basename(path)
+        title = os.path.splitext(filename)[0]
+        title = title[:-17]
         return title
 
     def get_id(title):
@@ -76,7 +83,7 @@ def main():
                 break
         return released
 
-    def get_trailer(movie_id, title):
+    def get_trailer(movie_id, title, year):
         resp = requests.get(f"{base_url}/movie/{movie_id}/videos", headers=HEADERS).json()
         results = resp.get("results", [])
         for result in results:
@@ -92,7 +99,7 @@ def main():
                         "writesubtitles": True,
                         "writeautomaticsub": True
                     },
-                    "outtmpl": f"{title} - Trailer.%(ext)s",
+                    "outtmpl": f"{title} ({year}) - Trailer.%(ext)s",
                 }
                 key = result["key"]
 
@@ -106,13 +113,14 @@ def main():
                 handle_trailer(path)
 
     def handle_trailer(path):
+        key = get_key(path)
         title = get_title(path)
-        if not unreleased[title]:    
+        if not unreleased[key]:    
             movie_id = get_id(title)
             releases = get_release_dates(movie_id)
             unreleased[title] = {"title": title, "movie_id": movie_id, "releases": releases, "released": False}
             save_unreleased(unreleased)
-        if is_released(unreleased[title]["releases"]):
+        if is_released(unreleased[key]["releases"]):
             move_trailer(path)
 
 
@@ -149,6 +157,7 @@ def main():
         for result in results:
             title = result["title"]
             movie_id = result["id"]
+            year = result["release_date"][:4]
 
             try:
                 if unreleased[title]["movie_id"] == movie_id:
@@ -156,9 +165,9 @@ def main():
             except Exception as e:
                 print("Movie not found. Attmepting to get trailer.")
 
-            unreleased[title] = {"title": title, "movie_id": movie_id, "releases": get_release_dates(movie_id), "released": False}
+            unreleased[f"{title} ({year})"] = {"title": title, "movie_id": movie_id, "releases": get_release_dates(movie_id), "released": False}
             save_unreleased(unreleased) 
-            get_trailer(movie_id, title)
+            get_trailer(movie_id, title, year)
 
     observer = Observer()
     observer.schedule(TrailerHandler(), UNRELEASED_TRAILERS, recursive=False)
