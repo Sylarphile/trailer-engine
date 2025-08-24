@@ -1,8 +1,5 @@
 import os, requests, time, shutil, json, yt_dlp
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 from datetime import datetime, timezone
-from difflib import SequenceMatcher
 from config import *
 
 def main():
@@ -20,43 +17,18 @@ def main():
     base_url = "https://api.themoviedb.org/3"
 
     unreleased = load_unreleased()
-
-    def similar(a, b):
-        return SequenceMatcher(None, a.lower(), b.lower()).ratio()
-
-    def move_trailer(path):
-        shutil.move(path, os.path.join(RELEASED_TRAILERS, os.path.basename(path)))
-        unreleased[get_key(path)]["released"] = True
-        save_unreleased(unreleased)
-
-    def get_key(path):
-            #Assumes a file format of: "Title (year) - Trailer.ext"
-        filename = os.path.basename(path)
-        title = os.path.splitext(filename)[0]
-        title = title[:-10]
-        return title    
     
-    def get_title(path):
-            #Assumes a file format of: "Title (year) - Trailer.ext"
-        filename = os.path.basename(path)
-        title = os.path.splitext(filename)[0]
-        title = title[:-17]
-        return title
-
-    def get_id(title):
-        resp = requests.get(f"{base_url}/search/movie", headers=HEADERS, params={"query": title}).json()
-        results = resp.get("results", [])
-        if not results:
-            return None
-        candidates = [r for r in results if not r.get("video", False)]
-        if not candidates:
-            candidates = results
-        candidates.sort(key=lambda r: similar(title, r["title"]), reverse=True)
-        for r in candidates:
-            print(f"- {r['title']} (id={r['id']}, video={r['video']})")
-
-        best_match = candidates[0]
-        return best_match["id"]
+    def move_trailer(path, movie_id):
+        try:
+            filename = os.path.basename(path)
+            dst = os.path.join(RELEASED_TRAILERS, filename)
+            shutil.move(path, dst)
+            if os.path.exists(dst):
+                print(f"Successfully moved {filename} to {dst}")
+                unreleased[movie_id]["released"] = True
+                save_unreleased(unreleased)
+        except Exception as e:
+            print(f"Error: {e}")
 
 
     def get_release_dates(movie_id):
@@ -83,104 +55,104 @@ def main():
                 break
         return released
 
-    def get_trailer(movie_id, title, year):
+    def get_trailer(movie_id):
         resp = requests.get(f"{base_url}/movie/{movie_id}/videos", headers=HEADERS).json()
         results = resp.get("results", [])
+        found = False
         for result in results:
             if result["type"] != "Trailer":
                 continue
             if result["site"] == "YouTube" and result["name"] == "Official Trailer" and result["official"]:
+                found = True
                 ydl_opts = {
                     "paths": {
-                        "home": rf"{UNRELEASED_TRAILERS}",
-                        "temp": rf"{TEMP_FOLDER}",
+                        "home": UNRELEASED_TRAILERS,
+                        "temp": TEMP_FOLDER
                     },
-                    "outtmpl": f"{title} ({year}) - Trailer.%(ext)s",
+                    "writethumbnail": True,
+                    "embedthubmnail": True,
+                    "postprocessors": [
+                        {"key": "FFmpegMetadata", "add_metadata": True},
+                        {"key": "FFmpegVideoConvertor", "preferedformat": "mkv"},
+                        {"key": "EmbedThumbnail"},
+                    ],
+                    "outtmpl": f"{unreleased[movie_id]["title"]} ({unreleased[movie_id]["year"]}).%(ext)s",
                 }
-                key = result["key"]
 
+                key = result["key"]
+                unreleased[movie_id]["yt_key"] = key
+                print("pausing for 10 seconds")
+                time.sleep(10)
                 with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
                     ytdl.download(f"https://www.youtube.com/watch?v={key}")
-            time.sleep(30)
+                if os.path.exists(os.path.join(UNRELEASED_TRAILERS, unreleased[movie_id]["filename"])):
+                    unreleased[movie_id]["downloaded"] = True
+                    save_unreleased(unreleased)
+                else:
+                    print(f"Failed to download trailer for {unreleased[movie_id]["title"]}")
 
-    class TrailerHandler(FileSystemEventHandler):
-        def on_created(self, event):
-            if not event.is_directory:
-                path = os.path.abspath(event.src_path)
-                handle_trailer(path)
 
-    def handle_trailer(path):
-        key = get_key(path)
-        title = get_title(path)
-        if not unreleased[key]:    
-            movie_id = get_id(title)
-            releases = get_release_dates(movie_id)
-            unreleased[title] = {"title": title, "movie_id": movie_id, "releases": releases, "released": False}
-            save_unreleased(unreleased)
-        if is_released(unreleased[key]["releases"]):
-            move_trailer(path)
+        if not found:
+            print(f"{unreleased[movie_id]["title"]} trailer not found.")
 
 
     def check_unreleased():
-        for title, info in list(unreleased.items()):
+        for movie_id, info in unreleased.items():
 
             if info["released"] == True:
                 continue
+            
+            if info["downloaded"] == False:
+                print(f"{info["title"]} trailer not downloaded. Attempting to download trailer.")
+                get_trailer(movie_id)
 
-            matching_files = [
-                f for f in os.listdir(UNRELEASED_TRAILERS)
-                if os.path.splitext(f)[0] == f"{title} - Trailer"
-            ]
-
-            if not matching_files:
-                info["released"] == True
-                continue
-
-            path = os.path.abspath(os.path.join(UNRELEASED_TRAILERS, matching_files[0]))
-
-            if not info["releases"]:
-                info["releases"] = get_release_dates(info["movie_id"])
+            if info["filename"] in os.listdir(UNRELEASED_TRAILERS):
+                path = os.path.abspath(os.path.join(UNRELEASED_TRAILERS, info["filename"]))
+                if not info["releases"]:
+                    info["releases"] = get_release_dates(movie_id)
                 if not info["releases"]:
                     continue
-            released = is_released(info["releases"])
-            if released:
-                move_trailer(path)
-                
-        save_unreleased(unreleased) 
+                released = is_released(info["releases"])
+                if released:
+                    move_trailer(path, movie_id)
+            else:
+                print(f"{info["filename"]} not found in {UNRELEASED_TRAILERS}. Setting status to 'released'")
+                info["released"] = True
+                save_unreleased(unreleased)
+        save_unreleased(unreleased)
 
     def check_new():
         resp = requests.get(f"{base_url}/movie/now_playing", headers=HEADERS, params={"region": "US"}).json()
         results = resp.get("results", [])
         for result in results:
-            title = result["title"]
             movie_id = result["id"]
+            if f"{movie_id}" in unreleased:
+                continue
+            title = result["title"]
             year = result["release_date"][:4]
-            key = f"{title} ({year})"
+            filename = f"{title} ({year}).mkv"
+            print(f"{title} not in state file. Adding.")
 
-            try:
-                if unreleased[key]["movie_id"] == movie_id:
-                    continue
-            except Exception as e:
-                print("Movie not in state file. Attempting to get trailer.")
-
-            unreleased[key] = {"title": title, "movie_id": movie_id, "releases": get_release_dates(movie_id), "released": False}
+            unreleased[movie_id] = {
+                "filename": filename,
+                "title": title, 
+                "year": year,
+                "releases": get_release_dates(movie_id), 
+                "released": False,
+                "downloaded": False
+                }
+            
             save_unreleased(unreleased) 
-            get_trailer(movie_id, title, year)
-
-    observer = Observer()
-    observer.schedule(TrailerHandler(), UNRELEASED_TRAILERS, recursive=False)
-    observer.start()
 
     try:
         while True:
-            check_unreleased()
             check_new()
+            check_unreleased()
             print(f"Check complete. Sleeping for {SLEEP_TIMER / 3600} hours.")
             time.sleep(SLEEP_TIMER)      
             
     except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+        print("Interrupted")
 
 if __name__ == "__main__":
     main()
