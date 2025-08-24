@@ -76,7 +76,7 @@ def main():
                         {"key": "FFmpegVideoConvertor", "preferedformat": "mkv"},
                         {"key": "EmbedThumbnail"},
                     ],
-                    "outtmpl": f"{unreleased[movie_id]["title"]} ({unreleased[movie_id]["year"]}).%(ext)s",
+                    "outtmpl": f"{unreleased[movie_id]['title']} ({unreleased[movie_id]['year']}).%(ext)s",
                 }
 
                 key = result["key"]
@@ -85,15 +85,15 @@ def main():
                 time.sleep(10)
                 with yt_dlp.YoutubeDL(ydl_opts) as ytdl:
                     ytdl.download(f"https://www.youtube.com/watch?v={key}")
-                if os.path.exists(os.path.join(UNRELEASED_TRAILERS, unreleased[movie_id]["filename"])):
+                if os.path.exists(os.path.join(UNRELEASED_TRAILERS, unreleased[movie_id]['filename'])):
                     unreleased[movie_id]["downloaded"] = True
                     save_unreleased(unreleased)
                 else:
-                    print(f"Failed to download trailer for {unreleased[movie_id]["title"]}")
+                    print(f"Failed to download trailer for {unreleased[movie_id]['title']}")
 
 
         if not found:
-            print(f"{unreleased[movie_id]["title"]} trailer not found.")
+            print(f"{unreleased[movie_id]['title']} trailer not found.")
 
 
     def check_unreleased():
@@ -103,7 +103,7 @@ def main():
                 continue
             
             if info["downloaded"] == False:
-                print(f"{info["title"]} trailer not downloaded. Attempting to download trailer.")
+                print(f"{info['title']} trailer not downloaded. Attempting to download trailer.")
                 get_trailer(movie_id)
 
             if info["filename"] in os.listdir(UNRELEASED_TRAILERS):
@@ -116,7 +116,7 @@ def main():
                 if released:
                     move_trailer(path, movie_id)
             else:
-                print(f"{info["filename"]} not found in {UNRELEASED_TRAILERS}. Setting status to 'released'")
+                print(f"{info['filename']} not found in {UNRELEASED_TRAILERS}. Setting status to 'released'")
                 info["released"] = True
                 save_unreleased(unreleased)
         save_unreleased(unreleased)
@@ -156,4 +156,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
