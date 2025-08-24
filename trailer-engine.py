@@ -95,6 +95,28 @@ def main():
         if not found:
             print(f"{unreleased[movie_id]['title']} trailer not found.")
 
+    def check_results(results):
+        for result in results:
+            year = result["release_date"][:4]
+            if int(year) <= (datetime.now().year - 2):
+                continue
+            movie_id = result["id"]
+            if f"{movie_id}" in unreleased:
+                continue
+            title = result["title"]          
+            filename = f"{title} ({year}).mkv"
+            print(f"{title} not in state file. Adding.")
+
+            unreleased[movie_id] = {
+                "filename": filename,
+                "title": title, 
+                "year": year,
+                "releases": get_release_dates(movie_id), 
+                "released": False,
+                "downloaded": False
+                }
+            
+            save_unreleased(unreleased) 
 
     def check_unreleased():
         for movie_id, info in unreleased.items():
@@ -121,32 +143,20 @@ def main():
                 save_unreleased(unreleased)
         save_unreleased(unreleased)
 
-    def check_new():
+    def check_now_playing():
         resp = requests.get(f"{base_url}/movie/now_playing", headers=HEADERS, params={"region": "US"}).json()
         results = resp.get("results", [])
-        for result in results:
-            movie_id = result["id"]
-            if f"{movie_id}" in unreleased:
-                continue
-            title = result["title"]
-            year = result["release_date"][:4]
-            filename = f"{title} ({year}).mkv"
-            print(f"{title} not in state file. Adding.")
+        check_results(results) 
 
-            unreleased[movie_id] = {
-                "filename": filename,
-                "title": title, 
-                "year": year,
-                "releases": get_release_dates(movie_id), 
-                "released": False,
-                "downloaded": False
-                }
-            
-            save_unreleased(unreleased) 
+    def check_upcoming():
+        resp = requests.get(f"{base_url}/movie/upcoming", headers=HEADERS, params={"region": "US"}).json()
+        results = resp.get("results", [])
+        check_results(results)
 
     try:
         while True:
-            check_new()
+            check_upcoming()
+            check_now_playing()
             check_unreleased()
             print(f"Check complete. Sleeping for {SLEEP_TIMER / 3600} hours.")
             time.sleep(SLEEP_TIMER)      
