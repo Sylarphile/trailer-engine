@@ -9,7 +9,7 @@ config.py format:
 ```
 HEADERS = {
     "accept": "application/json",
-    "Authorization": "Bearer API_Read_Access_Token"
+    "Authorization": "Bearer API_Read_Access_Token"    # Replace API_Read_Access_Token with your API token.
 }
 TEMP_FOLDER = "path/to/temp"                           # This folder is important for yt-dlp. Do not make it the same folder as UNRELEASED_TRAILERS.
 UNRELEASED_TRAILERS = "path/to/unreleased_trailers"
