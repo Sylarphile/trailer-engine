@@ -103,13 +103,14 @@ def main():
             movie_id = result["id"]
             if f"{movie_id}" in unreleased:
                 continue
-            title = result["title"]          
-            filename = f"{title} ({year}).mkv"
+            title = result["title"]
+            filtered_title = "".join(filter(lambda ch: ch not in "/\<>*?:'|", title))       
+            filename = f"{filtered_title} ({year}).mkv"
             print(f"{title} not in state file. Adding.")
 
             unreleased[movie_id] = {
                 "filename": filename,
-                "title": title, 
+                "title": filtered_title, 
                 "year": year,
                 "releases": get_release_dates(movie_id), 
                 "released": False,
